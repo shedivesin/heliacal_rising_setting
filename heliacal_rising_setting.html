@@ -1,0 +1,196 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Heliacal Rising and Setting of the Planets</title>
+<style>
+th,tr{font-variant-numeric:tabular-nums;text-align:center}
+</style>
+<table>
+<tr><th>Heliacal Rising<th>Heliacal Setting
+<tr><td><canvas width=128 height=384></canvas><td><canvas width=128 height=384>
+<tr><td colspan=2 id=date>
+</table>
+<script>
+// Convert Keplerian orbital elements to Cartesian coordinates.
+// https://ssd.jpl.nasa.gov/planets/approx_pos.html
+function kepler(a, e, I, L, ϖ, Ω) {
+  // Compute the argument of perihelion and the mean anomaly.
+  const ω = ϖ - Ω;
+  const M = L - ϖ;
+
+  // Solve Kepler's equation.
+  let E = M + e * Math.sin(M);
+  for(;;) {
+    const dM = M - (E - e * Math.sin(E));
+    const dE = dM / (1 - e * Math.cos(E));
+    E += dE;
+
+    // NB: 2e-8 radians is ~1e-6 degrees.
+    if(Math.abs(dE) <= 2e-8) {
+      break;
+    }
+  }
+
+  // Compute coordinates in orbital plane.
+  const x = a * (Math.cos(E) - e);
+  const y = a * Math.sqrt(1 - e * e) * Math.sin(E);
+
+  // Convert to (and return) coordinates in ecliptic plane.
+  // NB: We throw away the Z component since we only care about longitude.
+  const sin_I = Math.sin(I);
+  const cos_I = Math.cos(I);
+  const sin_Ω = Math.sin(Ω);
+  const cos_Ω = Math.cos(Ω);
+  const sin_ω = Math.sin(ω);
+  const cos_ω = Math.cos(ω);
+  return [
+    x * (cos_ω * cos_Ω - sin_ω * sin_Ω * cos_I) - y * (sin_ω * cos_Ω + cos_ω * sin_Ω * cos_I),
+    x * (cos_ω * sin_Ω + sin_ω * cos_Ω * cos_I) - y * (sin_ω * sin_Ω - cos_ω * cos_Ω * cos_I),
+    x * sin_ω * sin_I + y * cos_ω * sin_I,
+  ];
+}
+
+
+function dot(a, b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+function cross(a, b) {
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+}
+
+function normalize(a) {
+  const hypot = Math.hypot(a[0], a[1], a[2]);
+
+  a[0] /= hypot;
+  a[1] /= hypot;
+  a[2] /= hypot;
+
+  return a;
+}
+
+function look_at(eye, target, up) {
+  const z = normalize([target[0] - eye[0], target[1] - eye[1], target[2] - eye[2]]);
+  const x = normalize(cross(z, up));
+
+  // NB: X and Z are already normalized, so their cross product will be, too.
+  const y = cross(z, x);
+
+  return [x, y, z];
+}
+
+function project(a, m) {
+  return [dot(a, m[0]), dot(a, m[1]), dot(a, m[2]) + Math.sqrt(3)];
+}
+
+
+const [rise_ctx, set_ctx] = Array.from(
+  document.getElementsByTagName("canvas"),
+  canvas => canvas.getContext("2d"),
+);
+const date = document.getElementById("date");
+
+function clear(ctx, style) {
+  ctx.fillStyle = style;
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+}
+
+function circle(ctx, x, y, r, style) {
+  ctx.fillStyle = style;
+  ctx.beginPath();
+  ctx.arc(
+    ctx.canvas.width / 2 + x * ctx.canvas.height,
+    ctx.canvas.height - y * ctx.canvas.height,
+    r * ctx.canvas.height,
+    0,
+    Math.PI * 2,
+  );
+  ctx.fill();
+}
+
+// https://en.wikipedia.org/wiki/Epoch_(astronomy)#Julian_years_and_J2000
+const J2000 = Date.parse("2000-01-01T11:58:55.816");
+
+function draw(start_ms) {
+  // Compute Keplerian orbital elements (2000-50 AD).
+  // https://ssd.jpl.nasa.gov/planets/approx_pos.html
+  // NB: All constants in degrees have been converted to radians.
+  const T = ((Date.now() - start_ms) / 600000) % 0.5;
+  const sun = [0, 0, 0];
+  const mercury = kepler(
+    0.38709843   + T *    0.00000000,
+    0.20563661   + T *    0.00002123,
+    0.1222706869 - T *    0.0001030020,
+    4.4026221370 + T * 2608.7903181787,
+    1.3518922268 + T *    0.0027820571,
+    0.8436854966 - T *    0.0021317769,
+  );
+  const venus = kepler(
+    0.72332102   - T *    0.00000026,
+    0.00676399   - T *    0.00005107,
+    0.0593023688 + T *    0.0000075911,
+    3.1761450851 + T * 1021.3285533403,
+    2.2997777192 + T *    0.0009912856,
+    1.3381895772 - T *    0.0047602414,
+  );
+  const earth = kepler(
+    1.00000018   - T *    0.00000003,
+    0.01673163   - T *    0.00003661,
+    6.2831758220 - T *    0.0002333816,
+    1.7534784686 + T *  628.3075886082,
+    1.7964684262 + T *    0.0055493197,
+    6.1939535359 - T *    0.0042104072,
+  );
+  const mars = kepler(
+       1.52371243 + T *      0.00000097,
+       0.09336511 + T *      0.00009149,
+    (  1.85181869 + T *     -0.00724757) * (Math.PI / 180),
+    ( -4.56813164 + T *  19140.29934243) * (Math.PI / 180),
+    (-23.91744784 + T *      0.45223625) * (Math.PI / 180),
+    ( 49.71320984 + T *     -0.26852431) * (Math.PI / 180),
+  );
+  const jupiter = kepler(
+       5.20248019 + T *     -0.00002864,
+       0.04853590 + T *      0.00018026,
+    (  1.29861416 + T *     -0.00322699) * (Math.PI / 180),
+    ( 34.33479152 + T *   3034.90371757 + T * T * -0.00012452 + Math.cos(T * 38.35125000 * (Math.PI / 180)) * 0.06064060 + Math.sin(T * 38.35125000 * (Math.PI / 180)) * -0.35635438) * (Math.PI / 180),
+    ( 14.27495244 + T *      0.18199196) * (Math.PI / 180),
+    (100.29282654 + T *      0.13024619) * (Math.PI / 180),
+  );
+  const saturn = kepler(
+       9.54149883 + T *     -0.00003065,
+       0.05550825 + T *     -0.00032044,
+    (  2.49424102 + T *      0.00451969) * (Math.PI / 180),
+    ( 50.07571329 + T *   1222.11494724 + T * T * 0.00025899 + Math.cos(T * 38.35125000 * (Math.PI / 180)) * -0.13434469 + Math.sin(T * 38.35125000 * (Math.PI / 180)) * 0.87320147) * (Math.PI / 180),
+    ( 92.86136063 + T *      0.54179478) * (Math.PI / 180),
+    (113.63998702 + T *     -0.25015002) * (Math.PI / 180),
+  );
+
+  const matrix = look_at(earth, sun, [0, 0, 1]);
+  const points = [
+    [...project(mercury, matrix), 1/72, "#999"],
+    [...project(venus  , matrix), 1/32, "#fff"],
+    [...project(mars   , matrix), 1/48, "#c30"],
+    [...project(jupiter, matrix), 1/48, "#963"],
+    [...project(saturn , matrix), 1/64, "#69c"],
+  ].
+    filter(([, , z]) => z > 0).
+    sort(([, , a], [, , b]) => b - a);
+
+  clear(rise_ctx, "#336");
+  clear(set_ctx, "#336");
+  for(const [x, y, z, r, style] of points) {
+    circle(rise_ctx, -y / z, x / z, r, style);
+    circle(set_ctx, y / z, -x / z, r, style);
+  }
+
+  date.innerHTML = new Date(T * 3155760000000 + J2000).
+    toISOString().
+    replace(/T.*$/g, "");
+}
+
+setInterval(draw, 50/1000, Date.now());
+</script>
