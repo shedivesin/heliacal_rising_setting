@@ -1,14 +1,27 @@
 <!doctype html>
 <meta charset=utf-8>
-<title>Heliacal Rising and Setting of the Planets</title>
+<title>Amissio: Heliacal Rising and Setting of the Planets</title>
 <style>
+body{margin:4rem;max-width:36rem}
+.s{margin-top:4rem}
+table{margin:2rem auto}
 th,tr{font-variant-numeric:tabular-nums;text-align:center}
 </style>
+<h1>Heliacal Rising and Setting of the Planets</h1>
+
+<p>While considering the myth of <i>Isis and Osiris</i>, I had the idea that each of the gods in the myth are representative of some one or the other of the planets, as viewed from Earth at sunrise or sunset. But since I wanted to be sure of that, and since I am a parent and rarely have the energy to stargaze, I wrote a computer program to simulate viewing those planets over time.
+
+<p>This page will display the heliacal rising and setting of the planets, starting from 1800 and proceeding through 2050, after which it will repeat. The left column represents the view to the east just before sunrise, and the right column represents the view to the west just after sunset. The small blue circle bouncing up and down is Mercury, the big yellow circle is Venus, the red circle is Mars, the small yellow circle is Jupiter, and the small blue circle that always moves in a single direction is Saturn.
+
 <table>
 <tr><th>Heliacal Rising<th>Heliacal Setting
 <tr><td><canvas width=128 height=384></canvas><td><canvas width=128 height=384>
 <tr><td colspan=2 id=date>
 </table>
+
+<p class=s>Version 1 (21 Aug 2024).
+<br>All content on <a href=/>amissio.net</a> is dedicated into <a href=https://creativecommons.org/publicdomain/zero/1.0/>the public domain</a>.
+
 <script>
 // Convert Keplerian orbital elements to Cartesian coordinates.
 // https://ssd.jpl.nasa.gov/planets/approx_pos.html
