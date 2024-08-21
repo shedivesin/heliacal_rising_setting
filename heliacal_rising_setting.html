@@ -177,7 +177,7 @@ function draw(start_ms) {
     [...project(jupiter, matrix), 1/ 72, "#fe9"],
     [...project(saturn , matrix), 1/104, "#9af"],
   ].
-    filter(([, , z]) => z > 0).
+    filter(([, , z]) => z >= 1).
     sort(([, , a], [, , b]) => b - a);
 
   clear(rise_ctx, "#336");
