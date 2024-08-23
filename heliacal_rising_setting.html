@@ -126,12 +126,13 @@ function circle(ctx, x, y, r, style) {
 
 // https://en.wikipedia.org/wiki/Epoch_(astronomy)#Julian_years_and_J2000
 const J2000 = Date.parse("2000-01-01T11:58:55.816");
+let start_ms;
 
-function draw(start_ms) {
+function draw(time_ms) {
   // Compute Keplerian orbital elements (1800-2050 AD).
   // https://ssd.jpl.nasa.gov/planets/approx_pos.html
   // NB: All constants in degrees have been converted to radians.
-  const T = ((Date.now() - start_ms) / 600000) % 2.5 - 2;
+  const T = ((time_ms - start_ms) / 600000) % 2.5 - 2;
   const sun = [0, 0, 0];
   const mercury = kepler(
     0.38709927   + T *    0.00000037,
@@ -203,7 +204,14 @@ function draw(start_ms) {
   date.innerHTML = new Date(T * 3155760000000 + J2000).
     toISOString().
     replace(/T.*$/g, "");
+
+  requestAnimationFrame(draw);
 }
 
-setInterval(draw, 50/1000, Date.now());
+function init(time_ms) {
+  start_ms = time_ms;
+  draw(time_ms);
+}
+
+requestAnimationFrame(init);
 </script>
