@@ -9,9 +9,9 @@ th,tr{font-variant-numeric:tabular-nums;text-align:center}
 </style>
 <h1>Heliacal Rising and Setting of the Planets</h1>
 
-<p>While considering the myth of <i>Isis and Osiris</i>, I had the idea that each of the gods in the myth are representative of some one or the other of the planets, as viewed from Earth at sunrise or sunset. But since I wanted to be sure of that, and since I am a parent and rarely have the energy to stargaze, I wrote a computer program to simulate viewing those planets over time.
+<p>While considering the myth of <i>Isis and Osiris</i>, I had the idea that <a href="https://sdi.dreamwidth.org/143590.html">each of the gods in the myth are representative of some one or the other of the planets</a>, as viewed from Earth at sunrise or sunset. But since I wanted to be sure of that, and since I am a parent of young children and rarely have the energy to stargaze, I wrote a computer program to simulate viewing those planets over time.
 
-<p>This page will display the heliacal rising and setting of the planets, starting from 1800 and proceeding through 2050, after which it will repeat. The left column represents the view to the east just before sunrise, and the right column represents the view to the west just after sunset. The small blue circle bouncing up and down is Mercury, the big yellow circle is Venus, the red circle is Mars, the small yellow circle is Jupiter, and the small blue circle that always moves in a single direction is Saturn.
+<p>This page will display the heliacal rising and setting of the planets, starting from 1800 and proceeding through 2050, after which it will repeat. The left column represents the view to the east just before sunrise, and the right column represents the view to the west just after sunset; the bottom of each view is the horizon, while the top is roughly 60° above it. The small blue circle bouncing up and down is Mercury, the big yellow circle is Venus, the red circle is Mars, the small yellow circle is Jupiter, and the small blue circle that always moves in a single direction is Saturn.
 
 <table>
 <tr><th>Heliacal Rising<th>Heliacal Setting
@@ -63,10 +63,12 @@ function kepler(a, e, I, L, ϖ, Ω) {
 }
 
 
+// 3D vector dot product.
 function dot(a, b) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+// 3D vector cross product.
 function cross(a, b) {
   return [
     a[1] * b[2] - a[2] * b[1],
@@ -75,6 +77,7 @@ function cross(a, b) {
   ];
 }
 
+// 3D vector normalization (in-place).
 function normalize(a) {
   const hypot = Math.hypot(a[0], a[1], a[2]);
 
@@ -85,6 +88,9 @@ function normalize(a) {
   return a;
 }
 
+// Generate a 3D projection matrix for a camera located at `eye`, oriented
+// towards `target`, with `up` oriented towards the positive Y axis in the
+// view plane. (cf. OpenGL's gluLookAt().)
 function look_at(eye, target, up) {
   const z = normalize([target[0] - eye[0], target[1] - eye[1], target[2] - eye[2]]);
   const x = normalize(cross(z, up));
@@ -95,8 +101,11 @@ function look_at(eye, target, up) {
   return [x, y, z];
 }
 
+// Project a 3D point into the view space defined by a projection matrix.
+// NB: `Z` controls the field of view.
+const Z = Math.sqrt(3);
 function project(a, m) {
-  return [dot(a, m[0]), dot(a, m[1]), dot(a, m[2]) + Math.sqrt(3)];
+  return [dot(a, m[0]), dot(a, m[1]), dot(a, m[2]) + Z];
 }
 
 
@@ -183,6 +192,9 @@ function draw(time_ms) {
     1.9837835430 - T *    0.0050383805,
   );
 
+  // Generate the view from the earth towards the sun, project the five planets
+  // into the view, and draw them from furthest to nearest (so that the nearer
+  // ones are drawn over top of the further ones).
   const matrix = look_at(earth, sun, [0, 0, 1]);
   const points = [
     [...project(mercury, matrix), 1/ 80, "#9af"],
@@ -191,12 +203,14 @@ function draw(time_ms) {
     [...project(jupiter, matrix), 1/ 72, "#fe9"],
     [...project(saturn , matrix), 1/104, "#9af"],
   ].
-    filter(([, , z]) => z >= 1).
     sort(([, , a], [, , b]) => b - a);
 
   clear(rise_ctx, "#336");
   clear(set_ctx, "#336");
   for(const [x, y, z, r, style] of points) {
+    // NB: If the planet is behind the camera, we're done.
+    if(z <= Z - 1) { break; }
+
     circle(rise_ctx, -y / z, x / z, r, style);
     circle(set_ctx, y / z, -x / z, r, style);
   }
